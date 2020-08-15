@@ -1,0 +1,49 @@
+development:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=halofina-landing2-dev --skip_cleanup=true --api-key=$HEROKU_API_KEY
+  only:
+  - develop
+
+staging:
+  type: deploy
+  script:
+  - apt-get update -qy
+  - apt-get install -y ruby-dev
+  - gem install dpl
+  - dpl --provider=heroku --app=halofina-landing2-staging --api-key=$HEROKU_API_KEY
+  only:
+  - master
+
+build:
+  stage: build
+  image: tetraweb/php
+  script:
+  - apt-get update
+  - apt-get install unzip
+  - php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+  - php composer-setup.php
+  - php -r "unlink('composer-setup.php');"
+  - php composer.phar install
+  artifacts:
+    paths:
+      - vendor/
+  only:
+  - tags
+  
+production:
+  type: deploy
+  script:
+    - apt-get update -qy
+    - apt-get install -y -qq lftp
+    - lftp -c "set ftp:ssl-allow no; open -u $USERNAME,$PASSWORD $HOST; mirror -Rev ./ ./public_html/landing-v2.halofina.com  --ignore-time --parallel=10 --exclude-glob .git* --exclude .git/"
+    - lftp -c "set ftp:ssl-allow no; open -u $USERNAME,$PASSWORD $HOST; mirror -Rev ./ ./public_html/halofina.com  --ignore-time --parallel=10 --exclude-glob .git* --exclude .git/"
+    - rm -rf vendor/
+    - apt-get install -y ruby-dev
+    - gem install dpl
+    - dpl --provider=heroku --app=halofina-landing2 --api-key=$HEROKU_API_KEY
+  only:
+  - tags
